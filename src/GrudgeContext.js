@@ -5,28 +5,65 @@ import initialState from './initialState';
 
 const GRUDGE_ADD = 'GRUDGE_ADD';
 const GRUDGE_FORGIVE = 'GRUDGE_FORGIVE';
+const UNDO = 'UNDO';
+const REDO = 'REDO';
 
-const reducer = (state, action) => {
+const DEFAULT_STATE = {
+    past: [],
+    present: initialState,
+    future: []
+}
+
+const reducer = (state = DEFAULT_STATE, action) => {
     console.log(`DISPATCHING ${action.type}`)
 
-    switch (action.type) {
-        case GRUDGE_ADD:
-            return [action.payload, ...state]
-        case GRUDGE_FORGIVE:
-            return state.map(grudge => {
-                if (grudge.id !== action.payload.id) return grudge;
-                return { ...grudge, forgiven: !grudge.forgiven }
-            })
-        default:
-            return state;
+    if (action.type === GRUDGE_ADD) {
+        const newPresent = [action.payload, ...state]
+        return { past: [state.present, ...state.past], present: newPresent, future: [] }
     }
+
+    if (action.type === GRUDGE_FORGIVE) {
+        const newPresent = state.present.map(grudge => {
+            if (grudge.id !== action.payload.id) return grudge;
+            return { ...grudge, forgiven: !grudge.forgiven }
+        })
+
+        return { past: [state.present, ...state.past], present: newPresent, future: [] }
+    }
+
+    if (action.type === UNDO) {
+        const [newPresent, ...newPast] = state.past
+        return {
+            past: newPast,
+            present: newPresent,
+            future: [state.present, ...state.future]
+        }
+    }
+
+    if (action.type === REDO) {
+        const [newPresent, ...newFuture] = state.future;
+        const newPast = [state.present, ...state.past];
+
+        return {
+            past: newPast,
+            present: newPresent,
+            future: newFuture
+        }
+    }
+
+    return state
 
 }
 
 export const GrudgeContext = createContext()
 
 export const GrudgeProvider = ({ children }) => {
-    const [grudges, dispatch] = useReducer(reducer, initialState)
+    const [state, dispatch] = useReducer(reducer, DEFAULT_STATE)
+
+    const { past, present: grudges, future } = state;
+
+    const isPast = !!past.length;
+    const isFuture = !!future.length;
 
     const addGrudge = useCallback(({ person, reason }) => {
         dispatch({ type: GRUDGE_ADD, payload: { person, reason, id: id(), forgiven: false } })
@@ -37,7 +74,15 @@ export const GrudgeProvider = ({ children }) => {
         dispatch({ type: GRUDGE_FORGIVE, payload: { id } })
     }, [dispatch]);
 
-    const value = { grudges, addGrudge, toggleForgiveness }
+    const undo = useCallback(() => {
+        dispatch({ type: UNDO })
+    }, [dispatch])
+
+    const redo = useCallback(() => {
+        dispatch({ type: REDO })
+    }, [dispatch])
+
+    const value = { grudges, addGrudge, toggleForgiveness, undo, redo, isPast, isFuture }
 
     return <GrudgeContext.Provider {...{ value }}>
         {children}
