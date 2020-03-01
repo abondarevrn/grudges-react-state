@@ -19,6 +19,10 @@ const reducer = (state = DEFAULT_STATE, action) => {
 
     if (action.type === GRUDGE_ADD) {
         const newPresent = [action.payload, ...state]
+
+        // The state of future is cancelled in the moment we dispatch a new action
+        // A new Present is generated
+        // The previous present is putted as past[0] in the array of past
         return { past: [state.present, ...state.past], present: newPresent, future: [] }
     }
 
