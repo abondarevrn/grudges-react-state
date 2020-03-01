@@ -1,58 +1,24 @@
-import React, { useReducer, createContext, useCallback } from 'react';
+import React, { createContext, useCallback } from 'react';
 
 import id from 'uuid/v4';
+
+import { UNDO, REDO, useTimeTravelReducer } from './hooks/useTimeTravelReducer'
 import initialState from './initialState';
 
 const GRUDGE_ADD = 'GRUDGE_ADD';
 const GRUDGE_FORGIVE = 'GRUDGE_FORGIVE';
-const UNDO = 'UNDO';
-const REDO = 'REDO';
 
-const DEFAULT_STATE = {
-    past: [],
-    present: initialState,
-    future: []
-}
-
-const reducer = (state = DEFAULT_STATE, action) => {
-    console.log(`DISPATCHING ${action.type}`)
+const reducer = (state = initialState, action) => {
 
     if (action.type === GRUDGE_ADD) {
-        const newPresent = [action.payload, ...state]
-
-        // The state of future is cancelled in the moment we dispatch a new action
-        // A new Present is generated
-        // The previous present is putted as past[0] in the array of past
-        return { past: [state.present, ...state.past], present: newPresent, future: [] }
+        return [action.payload, ...state]
     }
 
     if (action.type === GRUDGE_FORGIVE) {
-        const newPresent = state.present.map(grudge => {
+        return state.map(grudge => {
             if (grudge.id !== action.payload.id) return grudge;
             return { ...grudge, forgiven: !grudge.forgiven }
         })
-
-        return { past: [state.present, ...state.past], present: newPresent, future: [] }
-    }
-
-    if (action.type === UNDO) {
-        const [newPresent, ...newPast] = state.past
-        return {
-            past: newPast,
-            present: newPresent,
-            future: [state.present, ...state.future]
-        }
-    }
-
-    if (action.type === REDO) {
-        const [newPresent, ...newFuture] = state.future;
-        const newPast = [state.present, ...state.past];
-
-        return {
-            past: newPast,
-            present: newPresent,
-            future: newFuture
-        }
     }
 
     return state
@@ -62,7 +28,7 @@ const reducer = (state = DEFAULT_STATE, action) => {
 export const GrudgeContext = createContext()
 
 export const GrudgeProvider = ({ children }) => {
-    const [state, dispatch] = useReducer(reducer, DEFAULT_STATE)
+    const [state, dispatch] = useTimeTravelReducer(reducer, initialState)
 
     const { past, present: grudges, future } = state;
 
